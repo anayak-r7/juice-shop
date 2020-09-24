@@ -9,6 +9,7 @@ const models = require('../models/index')
 const challenges = require('../data/datacache').challenges
 const users = require('../data/datacache').users
 const config = require('config')
+var TCellHooks = require('tcell-hooks').v1;
 
 module.exports = function login () {
   function afterLogin (user, res, next) {
@@ -34,6 +35,7 @@ module.exports = function login () {
           models.User.findOne({ where: { email: rememberedEmail } }).then(rememberedUser => {
             user = utils.queryResultToJson(rememberedUser)
             utils.solveIf(challenges.loginCisoChallenge, () => { return user.data.id === users.ciso.id })
+            TCellHooks.sendExpressLoginEventSuccess(req, req.body.email, req.cookies.io);
             afterLogin(user, res, next)
           })
         } else if (user.data && user.data.id && user.data.totpSecret !== '') {
@@ -47,8 +49,10 @@ module.exports = function login () {
             }
           })
         } else if (user.data && user.data.id) {
+          TCellHooks.sendExpressLoginEventSuccess(req, req.body.email, req.cookies.io);
           afterLogin(user, res, next)
         } else {
+          TCellHooks.sendExpressLoginEventFailure(req, req.body.email, req.cookies.io);
           res.status(401).send(res.__('Invalid email or password.'))
         }
       }).catch(error => {
